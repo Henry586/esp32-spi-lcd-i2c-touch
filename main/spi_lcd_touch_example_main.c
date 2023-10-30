@@ -13,6 +13,7 @@
 #include "esp_lcd_panel_ops.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
+#include "driver/i2c.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "lvgl.h"
@@ -21,10 +22,14 @@
 #include "esp_lcd_ili9341.h"
 #elif CONFIG_EXAMPLE_LCD_CONTROLLER_GC9A01
 #include "esp_lcd_gc9a01.h"
+#elif CONFIG_EXAMPLE_LCD_CONTROLLER_ST7796
+#include "esp_lcd_st7796.h"
 #endif
 
 #if CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_STMPE610
 #include "esp_lcd_touch_stmpe610.h"
+#elif CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_FT5X06
+#include "esp_lcd_touch_ft5x06.h"
 #endif
 
 static const char *TAG = "example";
@@ -38,14 +43,19 @@ static const char *TAG = "example";
 #define EXAMPLE_LCD_PIXEL_CLOCK_HZ     (20 * 1000 * 1000)
 #define EXAMPLE_LCD_BK_LIGHT_ON_LEVEL  1
 #define EXAMPLE_LCD_BK_LIGHT_OFF_LEVEL !EXAMPLE_LCD_BK_LIGHT_ON_LEVEL
-#define EXAMPLE_PIN_NUM_SCLK           18
-#define EXAMPLE_PIN_NUM_MOSI           19
-#define EXAMPLE_PIN_NUM_MISO           21
-#define EXAMPLE_PIN_NUM_LCD_DC         5
-#define EXAMPLE_PIN_NUM_LCD_RST        3
-#define EXAMPLE_PIN_NUM_LCD_CS         4
-#define EXAMPLE_PIN_NUM_BK_LIGHT       2
+#define EXAMPLE_PIN_NUM_SCLK           12
+#define EXAMPLE_PIN_NUM_MOSI           11
+#define EXAMPLE_PIN_NUM_MISO           13
+#define EXAMPLE_PIN_NUM_LCD_DC         9
+#define EXAMPLE_PIN_NUM_LCD_RST        7
+#define EXAMPLE_PIN_NUM_LCD_CS         10
+#define EXAMPLE_PIN_NUM_BK_LIGHT       6
 #define EXAMPLE_PIN_NUM_TOUCH_CS       15
+
+#define I2C_MASTER_SCL_IO              39
+#define I2C_MASTER_SDA_IO              40
+#define I2C_HOST                       I2C_NUM_0
+#define I2C_MASTER_FREQ_HZ             100000                  //freq:100K
 
 // The pixel number in horizontal and vertical
 #if CONFIG_EXAMPLE_LCD_CONTROLLER_ILI9341
@@ -54,6 +64,9 @@ static const char *TAG = "example";
 #elif CONFIG_EXAMPLE_LCD_CONTROLLER_GC9A01
 #define EXAMPLE_LCD_H_RES              240
 #define EXAMPLE_LCD_V_RES              240
+#elif CONFIG_EXAMPLE_LCD_CONTROLLER_ST7796
+#define EXAMPLE_LCD_H_RES              320
+#define EXAMPLE_LCD_V_RES              480
 #endif
 // Bit number used to represent command and parameter
 #define EXAMPLE_LCD_CMD_BITS           8
@@ -66,7 +79,7 @@ static const char *TAG = "example";
 esp_lcd_touch_handle_t tp = NULL;
 #endif
 
-extern void example_lvgl_demo_ui(lv_disp_t *disp);
+extern void example_lvgl_demo_ui();
 
 static bool example_notify_lvgl_flush_ready(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_io_event_data_t *edata, void *user_ctx)
 {
@@ -187,6 +200,19 @@ void app_main(void)
     };
     ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
+    ESP_LOGI(TAG, "Initialize i2c bus");
+    i2c_config_t i2c_conf = {
+            .mode = I2C_MODE_MASTER,
+            .sda_io_num = I2C_MASTER_SDA_IO,
+            .sda_pullup_en = GPIO_PULLUP_ENABLE,
+            .scl_io_num = I2C_MASTER_SCL_IO,
+            .scl_pullup_en = GPIO_PULLUP_ENABLE,
+            .master.clk_speed = I2C_MASTER_FREQ_HZ,
+            // .clk_flags = 0,          /*!< Optional, you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here. */
+    };
+    ESP_ERROR_CHECK(i2c_param_config(I2C_HOST, &i2c_conf));
+    ESP_ERROR_CHECK(i2c_driver_install(I2C_HOST, I2C_MODE_MASTER, 0, 0, 0));
+
     ESP_LOGI(TAG, "Install panel IO");
     esp_lcd_panel_io_handle_t io_handle = NULL;
     esp_lcd_panel_io_spi_config_t io_config = {
@@ -215,6 +241,9 @@ void app_main(void)
 #elif CONFIG_EXAMPLE_LCD_CONTROLLER_GC9A01
     ESP_LOGI(TAG, "Install GC9A01 panel driver");
     ESP_ERROR_CHECK(esp_lcd_new_panel_gc9a01(io_handle, &panel_config, &panel_handle));
+#elif CONFIG_EXAMPLE_LCD_CONTROLLER_ST7796
+    ESP_LOGI(TAG, "Install ST7796 panel driver");
+    ESP_ERROR_CHECK(esp_lcd_new_panel_st7796(io_handle, &panel_config, &panel_handle));
 #endif
 
     ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
@@ -229,9 +258,15 @@ void app_main(void)
 
 #if CONFIG_EXAMPLE_LCD_TOUCH_ENABLED
     esp_lcd_panel_io_handle_t tp_io_handle = NULL;
+#if CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_STMPE610
     esp_lcd_panel_io_spi_config_t tp_io_config = ESP_LCD_TOUCH_IO_SPI_STMPE610_CONFIG(EXAMPLE_PIN_NUM_TOUCH_CS);
     // Attach the TOUCH to the SPI bus
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &tp_io_config, &tp_io_handle));
+#elif CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_FT5X06
+    // Attach the TOUCH to the i2c bus
+    esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_FT5x06_CONFIG();
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)I2C_HOST, &tp_io_config, &tp_io_handle));
+#endif
 
     esp_lcd_touch_config_t tp_cfg = {
         .x_max = EXAMPLE_LCD_H_RES,
@@ -248,11 +283,14 @@ void app_main(void)
 #if CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_STMPE610
     ESP_LOGI(TAG, "Initialize touch controller STMPE610");
     ESP_ERROR_CHECK(esp_lcd_touch_new_spi_stmpe610(tp_io_handle, &tp_cfg, &tp));
+#elif CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_FT5X06
+    ESP_LOGI(TAG, "Initialize touch controller FT5X06");
+    ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_ft5x06(tp_io_handle, &tp_cfg, &tp));
 #endif // CONFIG_EXAMPLE_LCD_TOUCH_CONTROLLER_STMPE610
 #endif // CONFIG_EXAMPLE_LCD_TOUCH_ENABLED
 
     ESP_LOGI(TAG, "Turn on LCD backlight");
-    gpio_set_level(EXAMPLE_PIN_NUM_BK_LIGHT, EXAMPLE_LCD_BK_LIGHT_ON_LEVEL);
+    gpio_set_level(EXAMPLE_PIN_NUM_BK_LIGHT, EXAMPLE_LCD_BK_LIGHT_ON_LEVEL);//打开背光
 
     ESP_LOGI(TAG, "Initialize LVGL library");
     lv_init();
@@ -297,7 +335,7 @@ void app_main(void)
 #endif
 
     ESP_LOGI(TAG, "Display LVGL Meter Widget");
-    example_lvgl_demo_ui(disp);
+    example_lvgl_demo_ui();
 
     while (1) {
         // raise the task priority of LVGL and/or reduce the handler period can improve the performance

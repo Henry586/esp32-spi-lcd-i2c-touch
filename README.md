@@ -1,6 +1,19 @@
 | Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C6 | ESP32-H2 | ESP32-S2 | ESP32-S3 |
 | ----------------- | ----- | -------- | -------- | -------- | -------- | -------- | -------- |
 
+# Add support for [星球一号 LVGL 开发板](https://item.taobao.com/item.htm?id=716563448599) 
+Including below changes:  
+1) Add component esp_lcd_st7796 to support spi LCD controller ST7796
+2) Add component esp_lcd_touch_ft5x06 to support i2c touch controller FT6236 
+3) Config example:   
+<pre>(Top) → Example Configuration
+                                   Espressif IoT Development Framework Configuration
+    LCD controller model (ST7796)  --->
+[*] Enable LCD touch
+        LCD touch controller model (FT5X06)  ---></pre>
+![idf.py menuconfig](config.png "idf.py menuconfig")
+
+
 # SPI LCD and Touch Panel Example
 
 [esp_lcd](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/peripherals/lcd.html) provides several panel drivers out-of box, e.g. ST7789, SSD1306, NT35510. However, there're a lot of other panels on the market, it's beyond `esp_lcd` component's responsibility to include them all.
