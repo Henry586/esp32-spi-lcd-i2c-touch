@@ -3,6 +3,6 @@ dependencies:
   espressif/esp_lcd_st7796: "==1.0.0"
   idf: ">=4.4"
   lvgl/lvgl: "~8.3.0"
-  esp_lcd_ili9341: "==1.0.0"
-  esp_lcd_gc9a01: "==1.0.0"
+  esp_lcd_ili9341: "==1.0.2"
+  esp_lcd_gc9a01: "==1.0.1"
   esp_lcd_touch_stmpe610: "^1.0"
