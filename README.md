@@ -13,6 +13,28 @@ Including below changes:
         LCD touch controller model (FT5X06)  ---></pre>
 ![idf.py menuconfig](config.png "idf.py menuconfig")
 
+# One more thing
+It's better to increase lv memory size if below error occurred:
+<pre>
+E (11360) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (11360) task_wdt:  - IDLE (CPU 0)
+E (11360) task_wdt: Tasks currently running:
+E (11360) task_wdt: CPU 0: main
+E (11360) task_wdt: CPU 1: IDLE
+E (11360) task_wdt: Print CPU 0 (current core) backtrace
+</pre>
+I just increase it from 32k to 64k to solve task watchdog issue:
+<pre>
+(Top) → Component config → LVGL configuration → Memory settings
+                                                                          Espressif IoT Development Framework Configuration
+[ ] If true use custom malloc/free, otherwise use the built-in `lv_mem_alloc()` and `lv_mem_free()`
+(64) Size of the memory used by `lv_mem_alloc` in kilobytes (>= 2kB)
+(0x0) Address for the memory pool instead of allocating it as a normal array
+(16) Number of the memory buffer
+[ ] Use the standard memcpy and memset instead of LVGL's own functions
+</pre>
+![CONFIG_LV_MEM_SIZE_KILOBYTES](CONFIG_LV_MEM_SIZE_KILOBYTES.png "CONFIG_LV_MEM_SIZE_KILOBYTES")
+
 
 # SPI LCD and Touch Panel Example
 
