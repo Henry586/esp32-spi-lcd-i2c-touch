@@ -248,7 +248,7 @@ void app_main(void)
 
     ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
     ESP_ERROR_CHECK(esp_lcd_panel_init(panel_handle));
-#if CONFIG_EXAMPLE_LCD_CONTROLLER_GC9A01
+#if CONFIG_EXAMPLE_LCD_CONTROLLER_GC9A01 ||  CONFIG_EXAMPLE_LCD_CONTROLLER_ST7796
     ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel_handle, true));
 #endif
     ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, false));
